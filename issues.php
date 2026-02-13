@@ -9,6 +9,37 @@ if (empty($_SESSION['is_admin'])) {
 
 $errors = [];
 $reports = [];
+$success = '';
+
+function format_relative_time($timestamp) {
+  $now = time();
+  $diff = $now - $timestamp;
+  $future = $diff < 0;
+  $diff = abs($diff);
+
+  if ($diff < 60) {
+    return $future ? 'in a moment' : 'just now';
+  }
+
+  $units = [
+    31536000 => 'year',
+    2592000  => 'month',
+    604800   => 'week',
+    86400    => 'day',
+    3600     => 'hour',
+    60       => 'minute'
+  ];
+
+  foreach ($units as $secs => $name) {
+    if ($diff >= $secs) {
+      $value = (int) floor($diff / $secs);
+      $label = $name . ($value === 1 ? '' : 's');
+      return $future ? "in {$value} {$label}" : "{$value} {$label} ago";
+    }
+  }
+
+  return $future ? 'in a moment' : 'just now';
+}
 
 $dbDir = __DIR__ . DIRECTORY_SEPARATOR . 'DATABASE';
 if (!is_dir($dbDir)) {
@@ -20,7 +51,39 @@ try {
     $pdo = new PDO($dsn);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    $stmt = $pdo->query('SELECT id, post_code, street, category, subcategory, image, created_at FROM reports ORDER BY created_at DESC, id DESC');
+    // Ensure status column exists
+    $cols = $pdo->query("PRAGMA table_info('reports')")->fetchAll(PDO::FETCH_ASSOC);
+    $hasStatus = false;
+    foreach ($cols as $c) {
+      if (isset($c['name']) && $c['name'] === 'status') {
+        $hasStatus = true;
+        break;
+      }
+    }
+    if (!$hasStatus) {
+      $pdo->exec("ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'open'");
+    }
+
+    // Handle moderation actions
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      $action = $_POST['action'] ?? '';
+      $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+      if ($id > 0) {
+        if ($action === 'fixed') {
+          $upd = $pdo->prepare('UPDATE reports SET status = :status WHERE id = :id');
+          $upd->execute([':status' => 'fixed', ':id' => $id]);
+          $success = 'Marked as fixed.';
+        } elseif ($action === 'invalid') {
+          $upd = $pdo->prepare('UPDATE reports SET status = :status WHERE id = :id');
+          $upd->execute([':status' => 'invalid', ':id' => $id]);
+          $success = 'Marked as invalid.';
+        }
+      }
+      header('Location: issues.php');
+      exit;
+    }
+
+    $stmt = $pdo->query('SELECT id, post_code, street, category, subcategory, image, created_at, status FROM reports ORDER BY created_at DESC, id DESC');
     $reports = $stmt->fetchAll(PDO::FETCH_ASSOC);
     // Compute city counts using the leading letters of the postcode
     $city_counts = [];
@@ -61,8 +124,11 @@ try {
     .modal-backdrop { display: none; position: fixed; inset: 0; background-color: rgba(0,0,0,0.7); z-index: 999; }
     .modal-backdrop.active { display: flex; align-items: center; justify-content: center; }
     .modal-content { background: white; border-radius: 0.75rem; max-width: 90vw; max-height: 90vh; overflow: auto; position: relative; z-index: 1000; }
+    #modalImage { max-width: 90vw; max-height: 80vh; object-fit: contain; display: block; }
     .modal-close { position: absolute; top: 1rem; right: 1rem; background: white; border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 0.5rem; cursor: pointer; z-index: 1001; }
     .modal-close:hover { background: #f3f4f6; }
+    .issue-thumb { filter: grayscale(100%) saturate(0%) contrast(95%); transition: filter 0.2s ease; }
+    .issue-thumb:hover { filter: grayscale(0%) saturate(100%) contrast(100%); }
   </style>
 </head>
 <body class="bg-gradient-to-br from-gray-200 to-gray-50 min-h-screen p-6 px-80">
@@ -125,68 +191,94 @@ try {
       </div>
 
       <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm text-left">
-            <thead>
-              <tr class="text-gray-700 bg-gray-50">
-                <th class="px-4 py-3">ID</th>
-                <th class="px-4 py-3">Postcode</th>
-                <th class="px-4 py-3">Street</th>
-                <th class="px-4 py-3">Category</th>
-                <th class="px-4 py-3">Subcategory</th>
-                <th class="px-4 py-3">Image</th>
-                <th class="px-4 py-3">Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php if (empty($reports)): ?>
-                <tr>
-                  <td colspan="7" class="px-4 py-6 text-center text-gray-500">No reports yet.</td>
-                </tr>
-              <?php else: ?>
-                <?php foreach ($reports as $r): ?>
-                  <tr class="border-t">
-                    <td class="px-4 py-3 align-top"><?php echo (int)$r['id']; ?></td>
-                    <td class="px-4 py-3 align-top"><?php echo htmlspecialchars($r['post_code']); ?></td>
-                    <td class="px-4 py-3 align-top"><?php echo htmlspecialchars($r['street'] ?? ''); ?></td>
-                    <td class="px-4 py-3 align-top"><?php echo htmlspecialchars($r['category'] ?? ''); ?></td>
-                    <td class="px-4 py-3 align-top"><?php echo htmlspecialchars($r['subcategory'] ?? ''); ?></td>
-                    <td class="px-4 py-3 align-top">
-                      <?php if (!empty($r['image'])):
-                        $img = $r['image'];
-                        $localPath = __DIR__ . DIRECTORY_SEPARATOR . 'REPORT_IMAGES' . DIRECTORY_SEPARATOR . $img;
-                        $src = '';
-                        if (filter_var($img, FILTER_VALIDATE_URL)) {
-                          $src = $img;
-                        } elseif (file_exists($localPath)) {
-                          $src = 'REPORT_IMAGES/' . rawurlencode($img);
-                        }
-                      ?>
-                        <?php if ($src): ?>
-                          <img src="<?php echo htmlspecialchars($src); ?>" alt="img" class="h-20 w-auto object-contain rounded cursor-pointer hover:opacity-75" data-id="<?php echo (int)$r['id']; ?>" data-category="<?php echo htmlspecialchars($r['category'] ?? ''); ?>" data-subcategory="<?php echo htmlspecialchars($r['subcategory'] ?? ''); ?>" onclick="openImageModal(this)" />
-                        <?php else: ?>
-                          <span class="text-xs text-gray-500">(missing)</span>
-                        <?php endif; ?>
+        <?php if (empty($reports)): ?>
+          <div class="px-4 py-6 text-center text-gray-500">No reports yet.</div>
+        <?php else: ?>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <?php foreach ($reports as $r): ?>
+              <?php
+                $status = $r['status'] ?? 'open';
+                $created = $r['created_at'] ?? '';
+                $createdText = '';
+                $createdTitle = '';
+                if (is_numeric($created) && (int)$created > 0) {
+                  $createdTs = (int)$created;
+                  $createdText = format_relative_time($createdTs);
+                  $createdTitle = date('Y-m-d H:i', $createdTs);
+                } else {
+                  $createdText = htmlspecialchars($created);
+                }
+
+                $img = $r['image'] ?? '';
+                $localPath = __DIR__ . DIRECTORY_SEPARATOR . 'REPORT_IMAGES' . DIRECTORY_SEPARATOR . $img;
+                $src = '';
+                if ($img && filter_var($img, FILTER_VALIDATE_URL)) {
+                  $src = $img;
+                } elseif ($img && file_exists($localPath)) {
+                  $src = 'REPORT_IMAGES/' . rawurlencode($img);
+                }
+              ?>
+              <div class="border border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm ring-1 ring-gray-200">
+                <div class="flex flex-col md:flex-row">
+                  <div class="md:w-1/3 bg-gray-50">
+                    <?php if ($src): ?>
+                      <img src="<?php echo htmlspecialchars($src); ?>" alt="img" class="w-full h-48 md:h-full object-cover cursor-pointer issue-thumb" data-id="<?php echo (int)$r['id']; ?>" data-category="<?php echo htmlspecialchars($r['category'] ?? ''); ?>" data-subcategory="<?php echo htmlspecialchars($r['subcategory'] ?? ''); ?>" onclick="openImageModal(this)" />
+                    <?php else: ?>
+                      <div class="w-full h-48 md:h-full flex items-center justify-center text-xs text-gray-400">No image</div>
+                    <?php endif; ?>
+                  </div>
+                  <div class="flex-1 p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <div class="text-xs text-gray-500">Issue #<?php echo (int)$r['id']; ?></div>
+                      <?php if ($status === 'fixed'): ?>
+                        <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-200">Solved</span>
+                      <?php elseif ($status === 'invalid'): ?>
+                        <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full bg-red-600 text-white shadow-sm ring-2 ring-red-200">Invalid</span>
                       <?php else: ?>
-                        <span class="text-xs text-gray-500">—</span>
+                        <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full bg-gray-600 text-white shadow-sm ring-2 ring-gray-200">Open</span>
                       <?php endif; ?>
-                    </td>
-                    <td class="px-4 py-3 align-top">
-                      <?php
-                        $created = $r['created_at'] ?? '';
-                        if (is_numeric($created) && (int)$created > 0) {
-                          echo date('Y-m-d H:i', (int)$created);
-                        } else {
-                          echo htmlspecialchars($created);
-                        }
-                      ?>
-                    </td>
-                  </tr>
-                <?php endforeach; ?>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
+                    </div>
+
+                    <div>
+                      <div class="text-lg font-semibold text-gray-900"><?php echo htmlspecialchars($r['category'] ?? 'Other'); ?></div>
+                      <?php if (!empty($r['subcategory'])): ?>
+                        <div class="text-sm text-gray-600"><?php echo htmlspecialchars($r['subcategory']); ?></div>
+                      <?php endif; ?>
+                    </div>
+
+                    <div class="text-sm text-gray-700">
+                      <div class="flex items-center gap-2">
+                        <span class="text-gray-500">Street:</span>
+                        <span><?php echo htmlspecialchars($r['street'] ?? ''); ?></span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-gray-500">Postcode:</span>
+                        <span><?php echo htmlspecialchars($r['post_code'] ?? ''); ?></span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-gray-500">Created:</span>
+                        <span<?php echo $createdTitle ? ' title="' . htmlspecialchars($createdTitle) . '"' : ''; ?>><?php echo $createdText; ?></span>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 pt-2">
+                      <form method="post" class="inline">
+                        <input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>" />
+                        <input type="hidden" name="action" value="fixed" />
+                        <button type="submit" class="px-3 py-1.5 text-xs rounded border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100">SOLVED</button>
+                      </form>
+                      <form method="post" class="inline" onsubmit="return confirm('Mark this issue as invalid?');">
+                        <input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>" />
+                        <input type="hidden" name="action" value="invalid" />
+                        <button type="submit" class="px-3 py-1.5 text-xs rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100">INVALID ISSUE</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
       </div>
 
     </div>

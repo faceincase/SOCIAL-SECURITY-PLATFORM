@@ -36,8 +36,22 @@ try {
       category TEXT,
       subcategory TEXT,
       image TEXT,
-      created_at INT
+      created_at INT,
+      status TEXT DEFAULT 'open'
     )");
+
+    // Ensure status column exists for older databases
+    $cols = $pdo->query("PRAGMA table_info('reports')")->fetchAll(PDO::FETCH_ASSOC);
+    $hasStatus = false;
+    foreach ($cols as $c) {
+        if (isset($c['name']) && $c['name'] === 'status') {
+            $hasStatus = true;
+            break;
+        }
+    }
+    if (!$hasStatus) {
+        $pdo->exec("ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'open'");
+    }
 
     // Populate default categories/subcategories if empty
     $count = (int)$pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn();
