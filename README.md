@@ -18,3 +18,29 @@ NO LOGIN REQUIRED:
 LOGIN REQUIRED:
 - issues.php - ADMIN ACCESS
 - blog.php - USER ACCESS
+
+
+
+----- Normal accounts:
+
+- USERNAME: adam
+- PASSWORD: adam
+
+- USERNAME: test
+- PASSWORD: test
+
+- USERNAME: isla
+- PASSWORD: 12345
+
+
+----- Admin accounts:
+
+- USERNAME: MrAdmin
+- PASSWORD: 321
+
+- USERNAME: bob
+- PASSWORD: bob
+
+- USERNAME: alice
+- PASSWORD: alice
+

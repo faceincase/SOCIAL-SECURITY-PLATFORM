@@ -25,6 +25,18 @@ try {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )");
 
+  $pdo->exec("CREATE TABLE IF NOT EXISTS logs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    action          TEXT NOT NULL,
+    status          TEXT,
+    user_id         INTEGER,
+    username        TEXT,
+    entity_type     TEXT,
+    entity_id       INTEGER,
+    ip_address      TEXT,
+    user_agent      TEXT,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  )");
 
 } catch (PDOException $e) {
   $errors[] = 'Database error: ' . $e->getMessage();
@@ -33,6 +45,29 @@ try {
 // Handle POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
+
+  // Helper function to log events
+  function logEvent($pdo, $action, $status, $username = null, $user_id = null, $entity_type = null, $entity_id = null) {
+    $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+    
+    try {
+      $stmt = $pdo->prepare('INSERT INTO logs (action, status, user_id, username, entity_type, entity_id, ip_address, user_agent) 
+                              VALUES (:action, :status, :user_id, :username, :entity_type, :entity_id, :ip_address, :user_agent)');
+      $stmt->execute([
+        ':action' => $action,
+        ':status' => $status,
+        ':user_id' => $user_id,
+        ':username' => $username,
+        ':entity_type' => $entity_type,
+        ':entity_id' => $entity_id,
+        ':ip_address' => $ip_address,
+        ':user_agent' => $user_agent
+      ]);
+    } catch (PDOException $e) {
+      // Silent fail - don't disrupt user experience
+    }
+  }
 
   if ($action === 'logout') {
     session_unset();
@@ -47,7 +82,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $confirm = $_POST['register_password_confirm'] ?? '';
 
     if ($username === '') $errors[] = 'Username is required.';
+    elseif (strlen($username) < 5) $errors[] = 'Username must be at least 5 characters.';
+    elseif (strlen($username) > 20) $errors[] = 'Username must be 20 characters or fewer.';
     if ($password === '') $errors[] = 'Password is required.';
+    elseif (strlen($password) < 8) $errors[] = 'Password must be at least 8 characters.';
+    elseif (!preg_match('/[a-z]/', $password)) $errors[] = 'Password must contain at least one lowercase letter.';
+    elseif (!preg_match('/[A-Z]/', $password)) $errors[] = 'Password must contain at least one uppercase letter.';
+    elseif (!preg_match('/[^a-zA-Z0-9]/', $password)) $errors[] = 'Password must contain at least one special character.';
     if ($password !== $confirm) $errors[] = 'Passwords do not match.';
 
     if (empty($errors)) {
@@ -55,14 +96,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hash = password_hash($password, PASSWORD_DEFAULT);
         $stmt = $pdo->prepare('INSERT INTO users (username, password_hash) VALUES (:u, :p)');
         $stmt->execute([':u' => $username, ':p' => $hash]);
+        $newUserId = $pdo->lastInsertId();
         $success = 'Registration successful. You can now log in.';
+        logEvent($pdo, 'register', 'success', $username, $newUserId, 'user', $newUserId);
       } catch (PDOException $e) {
         if (strpos($e->getMessage(), 'UNIQUE') !== false) {
           $errors[] = 'Username already exists.';
+          logEvent($pdo, 'register', 'failed', $username, null, 'user', null);
         } else {
           $errors[] = 'Database error: ' . $e->getMessage();
+          logEvent($pdo, 'register', 'failed', $username, null, 'user', null);
         }
       }
+    } else {
+      logEvent($pdo, 'register', 'failed', $username, null, 'user', null);
     }
   }
 
@@ -83,13 +130,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $_SESSION['logged_in'] = true;
           $_SESSION['username'] = $user['username'];
           $_SESSION['is_admin'] = isset($user['type']) && $user['type'] === 'admin';
+          logEvent($pdo, 'login', 'success', $user['username'], $user['id'], 'user', $user['id']);
+          if ($_SESSION['is_admin']) {
+            header('Location: login_admin.php');
+            exit;
+          }
           $success = 'Login successful.';
         } else {
           $errors[] = 'Invalid username or password.';
+          logEvent($pdo, 'login', 'failed', $username, null, 'user', null);
         }
       } catch (PDOException $e) {
         $errors[] = 'Database error: ' . $e->getMessage();
+        logEvent($pdo, 'login', 'failed', $username, null, 'user', null);
       }
+    } else {
+      logEvent($pdo, 'login', 'failed', $username, null, 'user', null);
     }
   }
 }
@@ -145,7 +201,7 @@ $isLoggedIn = !empty($_SESSION['logged_in']);
   <!-- Content Area -->
   <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
     <div class="lg:col-span-3 space-y-6">
-      <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+      <div class="bg-white p-8 rounded-xl shadow-lg border-2 border-gray-300">
         <?php if ($isLoggedIn): ?>
           <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold text-gray-900">Account Info</h1>
@@ -182,11 +238,15 @@ $isLoggedIn = !empty($_SESSION['logged_in']);
               <div class="space-y-4">
                 <div>
                   <label class="text-sm font-medium text-gray-700">Username</label>
-                  <input type="text" name="login_username" placeholder="Enter your username" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
+                  <input type="text" name="login_username" placeholder="Enter your username" maxlength="20" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
                 </div>
                 <div>
                   <label class="text-sm font-medium text-gray-700">Password</label>
                   <input type="password" name="login_password" placeholder="Enter your password" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
+                </div>
+                <div class="opacity-0 pointer-events-none" aria-hidden="true">
+                  <label class="text-sm font-medium text-gray-700">Spacer</label>
+                  <input type="text" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3" />
                 </div>
                 <button type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition">
                   <span class="font-semibold">Login</span>
@@ -201,11 +261,11 @@ $isLoggedIn = !empty($_SESSION['logged_in']);
               <div class="space-y-4">
                 <div>
                   <label class="text-sm font-medium text-gray-700">Username</label>
-                  <input type="text" name="register_username" placeholder="Choose a username" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
+                  <input type="text" name="register_username" placeholder="Choose a username" minlength="5" maxlength="20" required class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
                 </div>
                 <div>
                   <label class="text-sm font-medium text-gray-700">Password</label>
-                  <input type="password" name="register_password" placeholder="Create a password" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
+                  <input type="password" name="register_password" placeholder="Create a password" minlength="8" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,}" title="Min 8 characters, one uppercase, one lowercase, one special character" required class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
                 </div>
                 <div>
                   <label class="text-sm font-medium text-gray-700">Confirm Password</label>
@@ -218,11 +278,22 @@ $isLoggedIn = !empty($_SESSION['logged_in']);
               </div>
             </form>
           </div>
+
+          <div class="mt-6 bg-white/90 backdrop-blur border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-900 mb-3">Legal Agreement</h2>
+            <p class="text-sm text-gray-600 mb-4">
+              By registering or using this service, you agree to the Terms of Service and Privacy Policy, and acknowledge that you understand how your submissions may be stored and processed for service improvement and reporting purposes.
+            </p>
+            <label class="flex items-start gap-3 text-sm text-gray-700">
+              <input type="checkbox" checked class="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" />
+              <span>I agree to the Terms of Service and Privacy Policy.</span>
+            </label>
+          </div>
         <?php endif; ?>
       </div>
     </div>
 
-    <aside class="bg-white p-8 rounded-xl shadow-sm border border-gray-200 space-y-6">
+    <aside class="bg-white p-8 rounded-xl shadow-lg border-2 border-gray-300 space-y-6">
       <div>
         <h2 class="text-lg font-bold text-gray-900 mb-2">Account Tips</h2>
         <p class="text-sm text-gray-600">Keep your account secure and easy to recover</p>
@@ -252,6 +323,8 @@ $isLoggedIn = !empty($_SESSION['logged_in']);
       </ul>
     </aside>
   </div>
+
+  <?php include __DIR__ . '/ASSETS/footer.php'; ?>
 
   <script>lucide.createIcons();</script>
 </body>

@@ -1,6 +1,8 @@
 <?php
 // report.php - submit a report and save to SQLite DB with categories/subcategories stored in DB
 
+session_start();
+
 $errors = [];
 $success = false;
 $insertId = null;
@@ -227,6 +229,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <script>
     // Prepare subcategories map for client-side dynamic select
     const SUBCATS = <?php echo json_encode($subcategories); ?>;
+    // Category to icon mapping
+    const CATEGORY_ICONS = {
+      'Roads': 'car',
+      'Waste': 'trash-2',
+      'Lighting': 'lightbulb',
+      'Parks': 'trees',
+      'Pavements': 'route',
+      'Other': 'more-horizontal'
+    };
   </script>
   <script>
     // Simple enable/disable submit until required fields filled
@@ -321,7 +332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Left Main Section -->
     <div class="lg:col-span-3 space-y-6">
 
-      <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+      <div class="bg-white p-8 rounded-xl shadow-lg border-2 border-gray-300">
         <h1 class="text-3xl font-bold mb-3 text-gray-900">Submit an Issue</h1>
         <p class="text-gray-600 leading-relaxed">Please complete the form below to report an issue. Include as much detail as possible.</p>
       </div>
@@ -346,7 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       <?php endif; ?>
 
-      <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+      <div class="bg-white p-8 rounded-xl shadow-lg border-2 border-gray-300">
         <form method="POST" enctype="multipart/form-data" novalidate id="report-form">
           <div class="grid grid-cols-1 gap-4">
             <div>
@@ -366,7 +377,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="hidden" name="category_id" id="category_id_input" value="<?php echo isset($category_id) ? (int)$category_id : ''; ?>">
                 <div id="category_buttons" class="mt-2 flex flex-wrap gap-2">
                   <?php foreach ($categories as $cid => $cname): ?>
-                    <button type="button" data-cid="<?php echo $cid; ?>" class="category-btn px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700"><?php echo htmlspecialchars($cname); ?></button>
+                    <button type="button" data-cid="<?php echo $cid; ?>" class="category-btn inline-flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:shadow-md transition-all duration-200 font-medium">
+                      <i data-lucide="<?php $icons = ['Roads' => 'car', 'Waste' => 'trash-2', 'Lighting' => 'lightbulb', 'Parks' => 'trees', 'Pavements' => 'route', 'Other' => 'more-horizontal']; echo $icons[$cname] ?? 'circle'; ?>" class="w-4 h-4"></i>
+                      <?php echo htmlspecialchars($cname); ?>
+                    </button>
                   <?php endforeach; ?>
                 </div>
               </div>
@@ -401,7 +415,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <!-- Right Sidebar -->
-    <aside class="bg-white p-8 rounded-xl shadow-sm border border-gray-200 space-y-6">
+    <aside class="bg-white p-8 rounded-xl shadow-lg border-2 border-gray-300 space-y-6">
       <div>
         <h2 class="text-lg font-bold text-gray-900 mb-2">Quick Tips</h2>
         <p class="text-sm text-gray-600">Follow these guidelines when reporting</p>
@@ -459,6 +473,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       const subInput = document.getElementById('subcategory_id_input');
       const catBtns = document.querySelectorAll('.category-btn');
       const subContainer = document.getElementById('subcategory_buttons');
+      
+      const defaultBtnClass = 'inline-flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:shadow-md transition-all duration-200 font-medium';
+      const activeBtnClass = 'inline-flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 text-green-700 hover:border-green-300 hover:shadow-md transition-all duration-200 font-medium';
 
       function clearActive(containerSelector){
         const children = document.querySelectorAll(containerSelector);
@@ -468,26 +485,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       function makeSubButtons(cid){
         subContainer.innerHTML = '';
         if(!cid) return;
-        const list = subMap[cid] || [];
+        let list = subMap[cid] || [];
+        // Sort list so "Other" is always last
+        list = list.sort(function(a, b){
+          if(a.name === 'Other') return 1;
+          if(b.name === 'Other') return -1;
+          return 0;
+        });
         list.forEach(function(s){
           const btn = document.createElement('button');
           btn.type = 'button';
-          btn.className = 'sub-btn px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700';
+          btn.className = 'sub-btn ' + defaultBtnClass;
           btn.dataset.sid = s.id;
           btn.textContent = s.name;
           btn.addEventListener('click', function(){
             // set hidden input
             subInput.value = this.dataset.sid;
-            // mark active
-            document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('bg-green-600','text-white','border-green-600','shadow'));
-            this.classList.add('bg-green-600','text-white','border-green-600','shadow');
+            // mark active - reset all to default, then set clicked to active
+            document.querySelectorAll('.sub-btn').forEach(b => b.className = 'sub-btn ' + defaultBtnClass);
+            this.className = 'sub-btn ' + activeBtnClass;
           });
           subContainer.appendChild(btn);
         });
         // if subInput already has value, mark corresponding button active
         if(subInput.value){
           const pre = subContainer.querySelector('[data-sid="' + subInput.value + '"]');
-          if(pre) pre.classList.add('bg-green-600','text-white','border-green-600','shadow');
+          if(pre) pre.className = 'sub-btn ' + activeBtnClass;
         }
       }
 
@@ -496,9 +519,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           const cid = this.dataset.cid;
           // set hidden input
           catInput.value = cid;
-          // visual
-          catBtns.forEach(x => x.classList.remove('bg-green-600','text-white','border-green-600','shadow'));
-          this.classList.add('bg-green-600','text-white','border-green-600','shadow');
+          // visual - reset all to default, then set clicked to active
+          catBtns.forEach(x => x.className = 'category-btn ' + defaultBtnClass);
+          this.className = 'category-btn ' + activeBtnClass;
           // reset sub selection
           subInput.value = '';
           makeSubButtons(cid);
@@ -510,11 +533,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         const preCid = catInput.value;
         if(preCid){
           const el = document.querySelector('.category-btn[data-cid="' + preCid + '"]');
-          if(el) el.classList.add('bg-green-600','text-white','border-green-600','shadow');
+          if(el) el.className = 'category-btn ' + activeBtnClass;
           makeSubButtons(preCid);
         }
       });
     })();
   </script>
+
+  <?php include __DIR__ . '/ASSETS/footer.php'; ?>
+
 </body>
 </html>
