@@ -134,7 +134,11 @@ $descriptions = [
 					<h2 class="text-lg font-bold text-gray-900 mb-2"><?php echo htmlspecialchars($post['title']); ?></h2>
 					<p class="text-sm text-gray-600 leading-relaxed"><?php echo nl2br(htmlspecialchars($post['content'])); ?></p>
 
-					<div class="mt-4 pt-3 border-t border-gray-200 flex items-center justify-end">
+					<div class="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between">
+						<div class="inline-flex items-center gap-1.5 text-xs text-gray-500">
+							<i data-lucide="eye" class="w-3.5 h-3.5"></i>
+							<span><?php echo rand(100, 5000); ?> views</span>
+						</div>
 						<div class="flex items-center gap-2">
 							<button type="button" class="share-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 transition">
 								<i data-lucide="share-2" class="w-3.5 h-3.5"></i>

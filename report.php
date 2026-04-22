@@ -37,6 +37,7 @@ try {
       street TEXT NOT NULL,
       category TEXT,
       subcategory TEXT,
+      description TEXT,
       image TEXT,
       created_at INT,
       status TEXT DEFAULT 'open'
@@ -53,6 +54,18 @@ try {
     }
     if (!$hasStatus) {
         $pdo->exec("ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'open'");
+    }
+
+    // Ensure description column exists for older databases
+    $hasDescription = false;
+    foreach ($cols as $c) {
+      if (isset($c['name']) && $c['name'] === 'description') {
+        $hasDescription = true;
+        break;
+      }
+    }
+    if (!$hasDescription) {
+      $pdo->exec("ALTER TABLE reports ADD COLUMN description TEXT");
     }
 
     // Populate default categories/subcategories if empty
@@ -130,6 +143,7 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $post_code = trim($_POST['post_code'] ?? '');
     $street = trim($_POST['street'] ?? '');
+  $description = trim($_POST['description'] ?? '');
     $category_id = isset($_POST['category_id']) ? (int)$_POST['category_id'] : 0;
     $subcategory_id = isset($_POST['subcategory_id']) ? (int)$_POST['subcategory_id'] : 0;
 
@@ -141,6 +155,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($category_id <= 0) {
         $errors[] = 'Please select a category.';
+    }
+    $descriptionLength = function_exists('mb_strlen') ? mb_strlen($description) : strlen($description);
+    if ($descriptionLength > 200) {
+      $errors[] = 'Description must be 200 characters or fewer.';
     }
 
     // IMAGE
@@ -154,10 +172,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mkdir($uploadDir, 0755, true);
         }
 
-        // Size check (max 9MB)
-        $maxSize = 9 * 1024 * 1024; // 9MB
+        // Size check (max 5MB)
+        $maxSize = 6 * 1024 * 1024; // 5MB
         if ($_FILES['report_image']['size'] > $maxSize) {
-            $errors[] = 'Image size must not exceed 9MB.';
+            $errors[] = 'Image size must not exceed 5MB.';
         }
         
         // Validate type
@@ -200,14 +218,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $subName = $stmt->fetchColumn();
             }
 
-
-
-            $ins = $pdo->prepare('INSERT INTO reports (post_code, street, category, subcategory, image, created_at) VALUES (:post_code, :street, :category, :subcategory, :image, :created_at)');
+            $ins = $pdo->prepare('INSERT INTO reports (post_code, street, category, subcategory, description, image, created_at) VALUES (:post_code, :street, :category, :subcategory, :description, :image, :created_at)');
             $ins->execute([
               ':post_code' => $post_code,
               ':street' => $street,
               ':category' => $catName,
               ':subcategory' => $subName,
+              ':description' => $description !== '' ? $description : null,
               ':image' => $imagePath,
               ':created_at' => time(),
             ]);
@@ -371,6 +388,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <input type="text" name="street" value="<?php echo isset($street) ? htmlspecialchars($street) : ''; ?>" required class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-300 p-3" />
             </div>
 
+            <div>
+              <label class="text-sm font-medium text-gray-700">Description (optional, max 200 chars)</label>
+              <div class="relative">
+                <textarea
+                  id="description_input"
+                  name="description"
+                  maxlength="200"
+                  rows="3"
+                  class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-300 p-3 pr-20 resize-none"
+                  placeholder="Add a short description of the issue..."><?php echo isset($description) ? htmlspecialchars($description) : ''; ?></textarea>
+                <span id="description_count" class="absolute bottom-2 right-3 text-xs text-gray-500">0/200</span>
+              </div>
+            </div>
+
             <div class="space-y-4">
               <div>
                 <label class="text-sm font-medium text-gray-700">Category (Step 3)</label>
@@ -445,6 +476,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <script>
     lucide.createIcons();
+
+    (function(){
+      const descriptionInput = document.getElementById('description_input');
+      const descriptionCount = document.getElementById('description_count');
+      if (!descriptionInput || !descriptionCount) return;
+
+      const updateDescriptionCount = function(){
+        const len = descriptionInput.value.length;
+        descriptionCount.textContent = len + '/200';
+      };
+
+      descriptionInput.addEventListener('input', updateDescriptionCount);
+      updateDescriptionCount();
+    })();
+
     // Image preview handler
     (function(){
       const fileInput = document.getElementById('report_image_input');

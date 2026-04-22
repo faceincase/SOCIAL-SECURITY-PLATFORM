@@ -128,6 +128,18 @@ try {
       $pdo->exec("ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'open'");
     }
 
+    // Ensure description column exists for older databases
+    $hasDescription = false;
+    foreach ($cols as $c) {
+      if (isset($c['name']) && $c['name'] === 'description') {
+        $hasDescription = true;
+        break;
+      }
+    }
+    if (!$hasDescription) {
+      $pdo->exec("ALTER TABLE reports ADD COLUMN description TEXT");
+    }
+
     // Handle moderation actions
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $action = $_POST['action'] ?? '';
@@ -147,7 +159,7 @@ try {
       exit;
     }
 
-    $stmt = $pdo->query('SELECT id, post_code, street, category, subcategory, image, created_at, status FROM reports ORDER BY created_at DESC, id DESC');
+    $stmt = $pdo->query('SELECT id, post_code, street, category, subcategory, description, image, created_at, status FROM reports ORDER BY created_at DESC, id DESC');
     $reports = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     foreach ($reports as &$report) {
@@ -197,6 +209,7 @@ try {
             'street' => $report['street'] ?? '',
             'category' => $report['category'] ?? '',
             'subcategory' => $report['subcategory'] ?? '',
+            'description' => $report['description'] ?? null,
             'status' => $report['status'] ?? 'open',
             'created_at' => $report['created_at'] ?? '',
             'image' => $report['image'] ?? ''
@@ -465,6 +478,11 @@ try {
                       <div class="text-lg font-semibold text-gray-900"><?php echo htmlspecialchars($r['category'] ?? 'Other'); ?></div>
                       <?php if (!empty($r['subcategory'])): ?>
                         <div class="text-sm text-gray-600"><?php echo htmlspecialchars($r['subcategory']); ?></div>
+                      <?php endif; ?>
+                      <?php if (!empty($r['description'])): ?>
+                        <div class="mt-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-2">
+                          <?php echo nl2br(htmlspecialchars($r['description'])); ?>
+                        </div>
                       <?php endif; ?>
                     </div>
 

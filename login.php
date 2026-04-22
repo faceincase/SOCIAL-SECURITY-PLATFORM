@@ -271,7 +271,7 @@ $isLoggedIn = !empty($_SESSION['logged_in']);
                   <label class="text-sm font-medium text-gray-700">Confirm Password</label>
                   <input type="password" name="register_password_confirm" placeholder="Re-enter your password" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
                 </div>
-                <button type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition">
+                <button id="registerBtn" type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition">
                   <span class="font-semibold">Register</span>
                   <i data-lucide="user-plus" class="w-4 h-4"></i>
                 </button>
@@ -285,9 +285,29 @@ $isLoggedIn = !empty($_SESSION['logged_in']);
               By registering or using this service, you agree to the Terms of Service and Privacy Policy, and acknowledge that you understand how your submissions may be stored and processed for service improvement and reporting purposes.
             </p>
             <label class="flex items-start gap-3 text-sm text-gray-700">
-              <input type="checkbox" checked class="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" />
+              <input id="agreeCheckbox" type="checkbox" checked class="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" />
               <span>I agree to the Terms of Service and Privacy Policy.</span>
             </label>
+
+            <script>
+              const agreeCheckbox = document.getElementById('agreeCheckbox');
+              const registerBtn = document.getElementById('registerBtn');
+              
+              function toggleRegisterButton() {
+                registerBtn.disabled = !agreeCheckbox.checked;
+                if (registerBtn.disabled) {
+                  registerBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                  registerBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                } else {
+                  registerBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                  registerBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                }
+              }
+              
+              agreeCheckbox.addEventListener('change', toggleRegisterButton);
+              // Initialize button state on page load
+              toggleRegisterButton();
+            </script>
           </div>
         <?php endif; ?>
       </div>
