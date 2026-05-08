@@ -1,4 +1,55 @@
 <?php
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// LOG VISIT
+date_default_timezone_set('UTC');
+session_start();
+
+$shouldLog = true;
+
+// --- JS VERIFICATION ---
+if (!isset($_SESSION['js_verified'])) {
+    echo '<script>
+        fetch("/verify.php", {method: "POST"})
+            .then(() => location.reload());
+    </script>';
+    $shouldLog = false;
+}
+
+// --- BOT FILTER ---
+$userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+$botPatterns = [
+    'bot', 'crawl', 'spider', 'slurp', 'curl', 'wget', 'python', 'scrapy'
+];
+
+foreach ($botPatterns as $pattern) {
+    if (stripos($userAgent, $pattern) !== false) {
+        $shouldLog = false;
+        break;
+    }
+}
+
+// --- LOGGING ---
+if ($shouldLog) {
+    $visitLogFile = __DIR__ . '/DATABASE/visits.log';
+    $visitorIp = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+
+    $visitEntry = [
+        'time' => date('Y-m-d H:i:s'),
+        'ip' => $visitorIp,
+    ];
+
+    file_put_contents(
+        $visitLogFile,
+        json_encode($visitEntry) . PHP_EOL,
+        FILE_APPEND | LOCK_EX
+    );
+}
+// LOG VISIT
+/////////////////////////////////////////////////////////////////////////////////////////
+
+
 // Database connection
 $dbDir = __DIR__ . DIRECTORY_SEPARATOR . 'DATABASE';
 $dbFile = $dbDir . DIRECTORY_SEPARATOR . 'reports.sqlite';
@@ -105,11 +156,11 @@ try {
 
       <!-- Action Buttons -->
       <div class="flex gap-4">
-        <a href="report.php" class="w-1/2 inline-flex bg-green-500 px-6 py-4 rounded-xl shadow text-white hover:bg-green-600 hover:shadow-lg transition-all duration-200 items-center justify-center gap-2">
+        <a href="report.php" class="w-1/2 inline-flex bg-green-600 hover:bg-green-700 px-6 py-4 rounded-xl shadow text-white  hover:shadow-lg transition-all duration-200 items-center justify-center gap-2">
           <span class="text-lg font-semibold">REPORT AN ISSUE</span>
           <i data-lucide="clipboard-plus" class="w-5 h-5"></i>
         </a>
-        <a href="blog.php" class="w-1/2 inline-flex bg-sky-500 px-6 py-4 rounded-xl shadow text-white hover:bg-sky-600 hover:shadow-lg transition-all duration-200 items-center justify-center gap-2">
+        <a href="blog.php" class="w-1/2 inline-flex bg-sky-500 hover:bg-sky-600 px-6 py-4 rounded-xl shadow text-white hover:shadow-lg transition-all duration-200 items-center justify-center gap-2">
           <span class="text-lg font-semibold">VIEW BLOG</span>
           <i data-lucide="newspaper" class="w-5 h-5"></i>
         </a>

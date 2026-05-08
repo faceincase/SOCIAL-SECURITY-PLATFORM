@@ -244,14 +244,15 @@ $isLoggedIn = !empty($_SESSION['logged_in']);
                   <label class="text-sm font-medium text-gray-700">Password</label>
                   <input type="password" name="login_password" placeholder="Enter your password" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
                 </div>
-                <div class="opacity-0 pointer-events-none" aria-hidden="true">
-                  <label class="text-sm font-medium text-gray-700">Spacer</label>
-                  <input type="text" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3" />
-                </div>
-                <button type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition">
-                  <span class="font-semibold">Login</span>
+                
+                <!-- ADD SPACE HERE SO IT MATCHES REGISTER FORM IN LAYOUT -->
+                <div aria-hidden="true" class="h-12 md:h-[77px]"></div>
+
+                <button type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition">
+                  <span class="text-lg font-semibold">Login</span>
                   <i data-lucide="log-in" class="w-4 h-4"></i>
                 </button>
+
               </div>
             </form>
 
@@ -271,10 +272,12 @@ $isLoggedIn = !empty($_SESSION['logged_in']);
                   <label class="text-sm font-medium text-gray-700">Confirm Password</label>
                   <input type="password" name="register_password_confirm" placeholder="Re-enter your password" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white shadow-sm p-3 focus:ring-2 focus:ring-green-300 focus:border-green-300" />
                 </div>
-                <button id="registerBtn" type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition">
-                  <span class="font-semibold">Register</span>
+          
+                <button id="registerBtn" type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition">
+                  <span class="text-lg font-semibold">Register</span>
                   <i data-lucide="user-plus" class="w-4 h-4"></i>
                 </button>
+
               </div>
             </form>
           </div>

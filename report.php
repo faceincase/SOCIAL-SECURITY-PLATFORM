@@ -172,10 +172,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mkdir($uploadDir, 0755, true);
         }
 
-        // Size check (max 5MB)
-        $maxSize = 6 * 1024 * 1024; // 5MB
+        // Size check (max 9MB)
+        $maxSize = 9 * 1024 * 1024; // 9MB
         if ($_FILES['report_image']['size'] > $maxSize) {
-            $errors[] = 'Image size must not exceed 5MB.';
+            $errors[] = 'Image size must not exceed 9MB.';
         }
         
         // Validate type

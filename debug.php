@@ -52,7 +52,7 @@ function maskIpAddress($ip) {
   // IPv4
   $parts = explode('.', $ip);
   if (count($parts) === 4) {
-    return $parts[0] . '.xxx.xxx.xxx';
+    return $parts[0] . '.***.***.***';
   }
   
   return $ip;
@@ -256,6 +256,99 @@ function maskIpAddress($ip) {
                     </td>
                     <td class="px-4 py-3 text-gray-600 text-xs font-mono"><?php echo htmlspecialchars(maskIpAddress($log['ip_address'])); ?></td>
                     <td class="px-4 py-3 text-gray-700 text-xs"><?php echo htmlspecialchars($log['created_at']); ?></td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- Visits Log Table -->
+      <div class="bg-white p-8 rounded-xl shadow-lg border-2 border-gray-300">
+        <h2 class="text-xl font-bold mb-4 text-gray-900">Site Visits</h2>
+        <?php 
+          $visitsFile = __DIR__ . '/DATABASE/visits.log';
+          $visits = [];
+          
+          if (file_exists($visitsFile)) {
+            $lines = file($visitsFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+              $data = json_decode($line, true);
+              if ($data !== null) {
+                $visits[] = $data;
+              }
+            }
+          }
+          
+          // Calculate statistics
+          $totalVisits = count($visits);
+          $uniqueIps = count(array_unique(array_column($visits, 'ip')));
+          
+          // Last 24 hours
+          $now = new DateTime();
+          $twentyFourHoursAgo = clone $now;
+          $twentyFourHoursAgo->modify('-24 hours');
+          
+          $visitsLast24 = 0;
+          $uniqueIpsLast24 = [];
+          
+          foreach ($visits as $visit) {
+            try {
+              $visitTime = new DateTime($visit['time']);
+              if ($visitTime >= $twentyFourHoursAgo && $visitTime <= $now) {
+                $visitsLast24++;
+                $uniqueIpsLast24[] = $visit['ip'];
+              }
+            } catch (Exception $e) {
+              // Skip invalid timestamps
+            }
+          }
+          
+          $uniqueIpsLast24Count = count(array_unique($uniqueIpsLast24));
+        ?>
+        
+        <!-- Statistics Grid -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+          <div class="bg-gradient-to-br from-cyan-50 to-cyan-100 border border-cyan-200 rounded-lg p-4">
+            <div class="text-sm text-cyan-700">Total Visits</div>
+            <div class="text-lg font-semibold text-cyan-900"><?php echo $totalVisits; ?></div>
+            <div class="text-xs text-cyan-600 mt-1">All records</div>
+          </div>
+          <div class="bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-200 rounded-lg p-4">
+            <div class="text-sm text-teal-700">Unique IPs</div>
+            <div class="text-lg font-semibold text-teal-900"><?php echo $uniqueIps; ?></div>
+            <div class="text-xs text-teal-600 mt-1">All records</div>
+          </div>
+          <div class="bg-gradient-to-br from-sky-50 to-sky-100 border border-sky-200 rounded-lg p-4">
+            <div class="text-sm text-sky-700">Visits (Last 24h)</div>
+            <div class="text-lg font-semibold text-sky-900"><?php echo $visitsLast24; ?></div>
+            <div class="text-xs text-sky-600 mt-1">Last 24 hours</div>
+          </div>
+          <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
+            <div class="text-sm text-blue-700">Unique IPs (Last 24h)</div>
+            <div class="text-lg font-semibold text-blue-900"><?php echo $uniqueIpsLast24Count; ?></div>
+            <div class="text-xs text-blue-600 mt-1">Last 24 hours</div>
+          </div>
+        </div>
+        <?php if (empty($visits)): ?>
+          <div class="text-center py-8 text-gray-500">
+            <p>No visit logs found.</p>
+          </div>
+        <?php else: ?>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b-2 border-gray-300 bg-gray-50">
+                  <th class="text-left px-4 py-3 font-semibold text-gray-900">Timestamp</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-900">IP Address</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <?php foreach ($visits as $visit): ?>
+                  <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 text-gray-700"><?php echo htmlspecialchars($visit['time'] ?? 'N/A'); ?></td>
+                    <td class="px-4 py-3 text-gray-600 font-mono text-sm"><?php echo htmlspecialchars(maskIpAddress($visit['ip'] ?? 'unknown')); ?></td>
                   </tr>
                 <?php endforeach; ?>
               </tbody>

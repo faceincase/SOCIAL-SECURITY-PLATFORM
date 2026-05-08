@@ -5,6 +5,8 @@
     <a href="#" class="hover:text-gray-900 transition-colors" data-popup="privacy">PRIVACY POLICY</a>
     <span class="text-gray-400">•</span>
     <a href="#" class="hover:text-gray-900 transition-colors" data-popup="terms">TERMS OF SERVICE</a>
+    <span aria-hidden="true" class="inline-block w-px h-4 bg-gray-300"></span>
+    <a href="#" class="hover:text-gray-900 transition-colors" data-popup="accreditation">ACCREDITATION</a>
   </div>
 </footer>
 
@@ -65,6 +67,66 @@
           <p class="text-sm">To request data access or deletion, contact <a class="text-sky-700 hover:text-sky-900" href="mailto:contact@socialinputplatform.co.uk">contact@socialinputplatform.co.uk</a> or call <a class="text-sky-700 hover:text-sky-900" href="tel:+44000000000">+44 000000 0000</a>.</p>
         </div>
       `,
+accreditation: `
+  <div class="space-y-5 text-gray-700">
+    
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <p class="text-sm opacity-90">
+        Edinburgh Napier University • SOC09109 2025–6 TR2 001
+      </p>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <p class="text-sm leading-relaxed">
+        This project was completed as a collaborative university assignment over a 
+        <span class="font-semibold text-gray-900">12-week development period</span>, 
+        bringing together multiple disciplines including design, development and cybersecurity.
+      </p>
+    </div>
+
+    <div>
+      <h4 class="font-semibold text-gray-900 mb-3 text-base">Team Members</h4>
+      <div class="grid gap-2 text-sm">
+        
+        <div class="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+          <span><span class="font-medium">Alexander Gordon</span> <span class="text-gray-500" style="opacity: 0.7;">(40690935)</span></span>
+          <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">Project Manager</span>
+        </div>
+
+        <div class="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+          <span><span class="font-medium">Bikiza Otiende</span> <span class="text-gray-500" style="opacity: 0.7;">(40690993)</span></span>
+          <span class="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full">UI/UX</span>
+        </div>
+
+        <div class="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+          <span><span class="font-medium">Johnathan Brown</span> <span class="text-gray-500" style="opacity: 0.7;">(40690917)</span></span>
+          <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Cyber Team</span>
+        </div>
+
+        <div class="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+          <span><span class="font-medium">Lucia Rufo</span> <span class="text-gray-500" style="opacity: 0.7;">(40723530)</span></span>
+          <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Cyber Team</span>
+        </div>
+
+        <div class="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+          <span><span class="font-medium">Miko</span> <span class="text-gray-500" style="opacity: 0.7;">(40690931)</span></span>
+          <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Web Development</span>
+        </div>
+
+        <div class="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+          <span><span class="font-medium">Bobby Barty</span> <span class="text-gray-500" style="opacity: 0.7;">(40780019)</span></span>
+          <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">Legal / Web Development Support</span>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="text-xs text-gray-400 text-center">
+      Student identifiers are shown instead of full email addresses for privacy.
+    </p>
+
+  </div>
+`,
       terms: `
         <div class="space-y-4 text-gray-700">
           <p>By using this service, you agree to the following Terms of Service and Code of Conduct.</p>

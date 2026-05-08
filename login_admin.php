@@ -5,6 +5,47 @@ $errors = [];
 $success = '';
 $verified = !empty($_SESSION['admin_pin_verified']);
 
+
+// SEND A (DUMMY PIN) VIA TELEGRAM BOT
+$apiToken = "8640182270:AAE6bgdheCCXS22JSUuGFH_xcK-QWnm6l7k"; 
+$randomPin = random_int(100000, 999999);
+$data = [ 
+  "chat_id" => "8650634194", 
+  "text" =>
+    "Your verification code is:\n" .
+    "<strong>$randomPin</strong>\n\n" .
+    "<b>Expires in:</b> 2 minutes\n\n" .
+    "If you did not request this code, please ignore this message.\n\n" .
+    "<i>Do not share this code with anyone.</i>",
+  "parse_mode" => "HTML"
+];
+
+$context = stream_context_create([
+  'http' => [
+    'method' => 'POST',
+    'header' => 'Content-type: application/x-www-form-urlencoded',
+    'content' => http_build_query($data)
+  ]
+]);
+
+$ch = curl_init("https://api.telegram.org/bot$apiToken/sendMessage");
+
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+$response = curl_exec($ch);
+
+if ($response === false) {
+    echo curl_error($ch);
+}
+
+curl_close($ch);
+
+//var_dump($response);
+
+
+
 // Handle POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
