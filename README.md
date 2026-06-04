@@ -15,7 +15,7 @@ Concise, student-led web app to report community issues (potholes, lighting, was
 - Community blog: create posts (logged-in users), admin delete
 - Lightweight includes, no framework, quick to deploy (XAMPP/WAMP or PHP CLI)
 
-## Tech Stack
+## Tech Stack 
 
 - Backend: PHP 8.x (PDO, sessions)
 - Database: SQLite (single file under DATABASE/)
